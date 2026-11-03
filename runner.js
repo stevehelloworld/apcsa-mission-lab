@@ -1,0 +1,23 @@
+/* A bounded educational interpreter. Never evaluates JavaScript or arbitrary Java. */
+(function(root){
+function runJava(source,options={}){
+ const env={},output=[],trace=[];let tokens=[],pos=0;
+ const fail=m=>{throw new Error(m)};
+ function tokenize(s){const ts=[];let i=0;while(i<s.length){if(/\s/.test(s[i])){i++;continue}const rest=s.slice(i);let m;
+ if(s[i]==='"'){m=rest.match(/^"(?:[^"\\]|\\["\\nt])*"/);if(!m)fail('Close the string with a double quote.');ts.push({k:'str',v:JSON.parse(m[0])});i+=m[0].length}
+ else if(m=rest.match(/^\d+(?:\.\d+)?/)){ts.push({k:'num',v:Number(m[0]),t:m[0].includes('.')?'double':'int'});i+=m[0].length}
+ else if(m=rest.match(/^[A-Za-z_$][\w$]*/)){ts.push({k:'id',v:m[0]});i+=m[0].length}
+ else if('+-*/%()'.includes(s[i])){ts.push({k:s[i],v:s[i++]})}else fail('Unsupported expression character: '+s[i]);}return ts;}
+ function atom(){const t=tokens[pos++];if(!t)fail('An expression is missing a value.');if(t.k==='num')return {v:t.v,t:t.t};if(t.k==='str')return {v:t.v,t:'String'};if(t.k==='-'){const a=atom();if(!['int','double'].includes(a.t))fail('Minus requires a number.');return {v:-a.v,t:a.t}}if(t.k==='('){const a=expr(0);if(tokens[pos++]?.k!==')')fail('A closing parenthesis is missing.');return a}if(t.k==='id'){if(t.v==='true'||t.v==='false')return {v:t.v==='true',t:'boolean'};if(!env[t.v])fail('Variable "'+t.v+'" has not been declared.');return {...env[t.v]}}fail('Check the expression near '+t.v);}
+ const priority={'+':1,'-':1,'*':2,'/':2,'%':2};
+ const javaText=x=>x.t==='double'&&Number.isInteger(x.v)?x.v.toFixed(1):String(x.v);
+ function expr(min){let a=atom();while(pos<tokens.length&&priority[tokens[pos].k]>=min){const op=tokens[pos++].k;const b=expr(priority[op]+1);if(op==='+'&&(a.t==='String'||b.t==='String'))a={v:javaText(a)+javaText(b),t:'String'};else{if(!['int','double'].includes(a.t)||!['int','double'].includes(b.t))fail('Arithmetic requires numeric values.');const t=a.t==='double'||b.t==='double'?'double':'int';if((op==='/'||op==='%')&&b.v===0)fail('Division by zero is not supported in this lab.');let v=op==='+'?a.v+b.v:op==='-'?a.v-b.v:op==='*'?a.v*b.v:op==='/'?a.v/b.v:a.v%b.v;if(t==='int'&&op==='/')v=Math.trunc(v);if(t==='int'&&(v>2147483647||v< -2147483648))fail('This prototype does not model integer overflow. Use smaller values.');a={v,t}}}return a}
+ function value(s){tokens=tokenize(s);pos=0;const v=expr(0);if(pos!==tokens.length)fail('Unexpected token. Use only the supported Lesson 1 syntax.');return v}
+ if(source.length>12000)fail('Keep this mission below 12,000 characters.');
+ // Preserve comments and semicolons inside string literals.
+ let clean='',quoted=false,escape=false,comment=false;for(let i=0;i<source.length;i++){const c=source[i];if(comment){if(c==='\n'){comment=false;clean+='\n'}continue}if(!quoted&&c==='/'&&source[i+1]==='/'){comment=true;i++;continue}clean+=c;if(c==='"'&&!escape)quoted=!quoted;escape=quoted&&c==='\\'&&!escape;}if(quoted)fail('Close the string with a double quote.');
+ let statements=[],start=0;quoted=false;escape=false;for(let i=0;i<clean.length;i++){const c=clean[i];if(c==='"'&&!escape)quoted=!quoted;if(c===';'&&!quoted){statements.push(clean.slice(start,i).trim());start=i+1}escape=quoted&&c==='\\'&&!escape}if(clean.slice(start).trim())fail('End every statement with a semicolon.');
+ if(statements.length>150)fail('Use fewer than 150 statements.');
+ statements.filter(Boolean).forEach((s,i)=>{try{let m;if(m=s.match(/^System\.out\.(println|print)\s*\((.*)\)$/s)){const text=m[2].trim()?javaText(value(m[2])):'';output.push(text+(m[1]==='println'?'\n':''));return}m=s.match(/^(?:(int|double|boolean|String)\s+)?([A-Za-z_$][\w$]*)\s*=\s*(.+)$/s);if(!m)fail('Use declarations, assignments, or System.out.println / print. Full classes, loops and methods need a Java IDE.');const[,type,name,rhs]=m;if(type&&['int','double','boolean','String','true','false','class','public','void','static'].includes(name))fail('Choose a variable name that is not a Java keyword.');if(type&&env[name])fail('Variable "'+name+'" is already declared.');if(!type&&!env[name])fail('Declare "'+name+'" before assigning to it.');const v=value(rhs),target=type||env[name].t;if(target!==v.t&&!(target==='double'&&v.t==='int'))fail('Cannot assign '+v.t+' to '+target+'. Check the variable type.');env[name]={v:v.v,t:target};}catch(e){fail('Statement '+(i+1)+': '+e.message)}finally{if(options.trace)trace.push({statement:s+';',memory:Object.fromEntries(Object.entries(env).map(([k,v])=>[k,{...v}])),output:output.join('')})}});return {output:output.join(''),env,...(options.trace?{trace}:{})};
+}root.runJava=runJava;if(typeof module!=='undefined')module.exports={runJava};
+})(typeof window!=='undefined'?window:globalThis);
