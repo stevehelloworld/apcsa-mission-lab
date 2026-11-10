@@ -1,4 +1,4 @@
-/* Lightweight, low-poly Three.js worlds for the first two playable levels. */
+/* Lightweight Three.js worlds for the city grid, memory trace, and night market. */
 (function () {
   var CDN = 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js';
   var mounts = new Map();
@@ -32,6 +32,7 @@
     document.addEventListener('visibilitychange', syncAll);
     matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', syncAll);
     new MutationObserver(syncAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-motion'] });
+    new MutationObserver(function () { mounts.forEach(updateCanvasLabel); }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
     document.addEventListener('mission:power-values', function (event) {
       mounts.forEach(function (world) {
         if (world.type !== 'grid') return;
@@ -100,6 +101,14 @@
         drawOnce(world);
       });
     });
+    document.addEventListener('mission:market-beat', function (event) {
+      mounts.forEach(function (world) {
+        if (world.type !== 'market') return;
+        world.marketBeat = event.detail.success ? 1 : -1;
+        world.pulseUntil = performance.now() + 1100;
+        drawOnce(world);
+      });
+    });
   }
 
   function mountAll() {
@@ -147,6 +156,7 @@
 
     var scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x071a22, 14, 34);
+    if (stage.dataset.gameStage === 'market') scene.fog = new THREE.Fog(0x160f22, 15, 38);
     var camera = new THREE.PerspectiveCamera(37, 1, 0.1, 80);
     camera.position.set(10, 8, 11);
     camera.lookAt(0, 0, 0);
@@ -180,6 +190,7 @@
       traceNodes: [],
       attempt: 0,
       restored: false,
+      marketBeat: 0,
       running: false,
       activeStep: Number(stage.dataset.traceStep) || 0,
       frame: null
@@ -187,6 +198,7 @@
 
     addGround(world);
     if (world.type === 'grid') buildGrid(world);
+    else if (world.type === 'market') buildMarket(world);
     else buildTrace(world);
     if (world.type === 'grid') {
       var energy = document.querySelector('#energy');
@@ -213,12 +225,12 @@
   function addGround(world) {
     var floor = new THREE.Mesh(
       new THREE.PlaneGeometry(28, 22),
-      new THREE.MeshStandardMaterial({ color: 0x10252a, roughness: 0.88, metalness: 0.12 })
+      new THREE.MeshStandardMaterial({ color: world.type === 'market' ? 0x21162d : 0x10252a, roughness: 0.88, metalness: 0.12 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.14;
     world.root.add(floor);
-    var grid = new THREE.GridHelper(26, 26, 0x39736e, 0x1c4548);
+    var grid = new THREE.GridHelper(26, 26, world.type === 'market' ? 0x835a74 : 0x39736e, world.type === 'market' ? 0x382640 : 0x1c4548);
     grid.position.y = -0.1;
     grid.material.transparent = true;
     grid.material.opacity = 0.42;
@@ -346,12 +358,109 @@
     world.consoleLight = consoleLight;
   }
 
+  function buildMarket(world) {
+    world.scene.fog = new THREE.Fog(0x160f22, 15, 38);
+    world.scene.add(new THREE.HemisphereLight(0xf6d5f0, 0x25152a, 1.3));
+    var goldLight = new THREE.PointLight(0xffbc60, 48, 20);
+    goldLight.position.set(-5, 5, 1);
+    world.scene.add(goldLight);
+    var pinkLight = new THREE.PointLight(0xd96bd4, 35, 22);
+    pinkLight.position.set(5, 4, -3);
+    world.scene.add(pinkLight);
+    world.marketCoins = [];
+    world.marketLanterns = [];
+    world.marketStalls = [];
+
+    function box(width, height, depth, color, x, y, z, emissive, power) {
+      var mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), standard(color, emissive || 0x000000, power || 0, 0.72));
+      mesh.position.set(x, y, z);
+      world.root.add(mesh);
+      return mesh;
+    }
+    function rod(x1, y1, z1, x2, y2, z2, radius, color) {
+      var start = new THREE.Vector3(x1, y1, z1), end = new THREE.Vector3(x2, y2, z2);
+      var delta = new THREE.Vector3().subVectors(end, start);
+      var mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, delta.length(), 7), standard(color, color, 0.55, 0.5));
+      mesh.position.copy(start).add(end).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+      world.root.add(mesh);
+      return mesh;
+    }
+    var stalls = [
+      { x: -5.2, main: 0x9c426a, trim: 0xf2bd62, light: 0xff9a78 },
+      { x: 0, main: 0x267b78, trim: 0xedd07d, light: 0x65e1bd },
+      { x: 5.2, main: 0x754ba0, trim: 0xffa965, light: 0xd497ff }
+    ];
+    stalls.forEach(function (stall, index) {
+      var x = stall.x, z = -1.15;
+      box(3.05, 1.45, 1.7, 0x302239, x, 0.79, z, 0x170d21, 0.4);
+      box(3.25, 0.22, 2.05, stall.trim, x, 1.55, 0.08, stall.trim, 0.3);
+      box(3.2, 0.2, 2.14, stall.main, x, 2.69, -0.05, stall.main, 0.8);
+      for (var stripe = 0; stripe < 8; stripe++) {
+        var sx = x - 1.4 + stripe * 0.4;
+        box(0.39, 0.035, 2.08, stripe % 2 ? stall.trim : stall.main, sx, 2.81, -0.05, stripe % 2 ? stall.trim : stall.main, 0.8);
+      }
+      [-1.38, 1.38].forEach(function (side) {
+        [-0.88, 0.88].forEach(function (front) {
+          box(0.09, 1.23, 0.09, stall.trim, x + side, 2.02, front - 0.05, stall.trim, 0.45);
+        });
+      });
+      box(1.45, 0.47, 0.1, 0x211628, x, 2.13, 1.01, stall.light, 1.1);
+      box(0.14, 0.06, 0.11, stall.trim, x - 0.42, 2.12, 1.08, stall.trim, 1.3);
+      box(0.14, 0.06, 0.11, stall.trim, x + 0.42, 2.12, 1.08, stall.trim, 1.3);
+      var display = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), standard(stall.trim, stall.light, 1.25, 0.34));
+      display.position.set(x, 1.91, 0.63);
+      world.root.add(display);
+      display.rotation.set(0.22, 0.2, 0.12);
+      world.marketStalls.push({ display: display, light: stall.light });
+
+      for (var stack = 0; stack < 5; stack++) {
+        var coin = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.065, 10), standard(stall.trim, 0x8e5f1c, 0.6, 0.35));
+        coin.position.set(x - 0.82 + (stack % 3) * 0.53, 1.72 + (stack > 2 ? 0.08 : 0), 0.5 + Math.floor(stack / 3) * 0.31);
+        world.root.add(coin);
+        world.marketCoins.push({ mesh: coin, baseY: coin.position.y, phase: index * 0.7 + stack * 0.8 });
+      }
+      for (var crate = 0; crate < 2; crate++) {
+        var crateMesh = box(0.62, 0.55, 0.62, crate ? 0x5f3e52 : 0x7c5944, x + (crate ? 1.28 : -1.27), 0.31, 1.92, 0x241624, 0.15);
+        box(0.67, 0.08, 0.67, stall.trim, crateMesh.position.x, 0.55, 1.92, stall.trim, 0.25);
+      }
+      var lantern = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 7), standard(stall.light, stall.light, 1.65, 0.32));
+      lantern.position.set(x, 3.28, 0.34);
+      world.root.add(lantern);
+      world.marketLanterns.push({ mesh: lantern, baseY: lantern.position.y, phase: index * 1.4, material: lantern.material });
+    });
+
+    // A lit entry arch and a tiled walking lane make this a separate, readable game world.
+    var arch = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.12, 8, 28, Math.PI), standard(0xffd778, 0xfaad54, 1.7, 0.38));
+    arch.position.set(0, 1.85, 3.15);
+    arch.rotation.z = Math.PI;
+    world.root.add(arch);
+    for (var tile = -5; tile <= 5; tile++) {
+      var paving = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.025, 0.72), standard(tile % 2 ? 0x37263a : 0x433044, 0x25182c, 0.2, 0.8));
+      paving.position.set(tile * 0.76, 0.01, 4.45);
+      world.root.add(paving);
+    }
+    for (var lamp = 0; lamp < 9; lamp++) {
+      var lx = -7 + lamp * 1.75, ly = 4.3 + Math.sin(lamp * 1.6) * 0.5, lz = -4.1 - Math.cos(lamp * 0.8) * 0.6;
+      if (lamp < 8) rod(lx, ly + 0.5, lz, lx + 1.75, ly + 0.1, lz + 0.25, 0.018, 0x8c698f);
+      var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), standard(lamp % 2 ? 0xffb95e : 0xf3a8cc, lamp % 2 ? 0xffb95e : 0xf3a8cc, 2.2, 0.3));
+      bulb.position.set(lx, ly, lz);
+      world.root.add(bulb);
+      world.marketLanterns.push({ mesh: bulb, baseY: ly, phase: lamp * 0.53, material: bulb.material });
+    }
+    for (var spark = 0; spark < 10; spark++) {
+      var glint = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), standard(0xf9dc97, 0xf7b75a, 2.5, 0.25));
+      glint.position.set(-6.5 + (spark * 1.37) % 13, 0.4 + (spark % 4) * 0.36, 2.7 - (spark % 3) * 1.2);
+      world.root.add(glint);
+      world.marketCoins.push({ mesh: glint, baseY: glint.position.y, phase: spark * 0.6, tiny: true });
+    }
+  }
+
   function addPointerControls(world) {
     var canvas = world.stage.querySelector('canvas');
     canvas.tabIndex = 0;
     canvas.removeAttribute('aria-hidden');
-    canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', 'Three-dimensional game scene. Drag horizontally to rotate; use arrow keys while focused.');
+    updateCanvasLabel(world);
     canvas.addEventListener('pointerdown', function (event) {
       world.drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
       canvas.setPointerCapture(event.pointerId);
@@ -382,6 +491,14 @@
         drawOnce(world);
       }
     });
+  }
+
+  function updateCanvasLabel(world) {
+    var canvas = world.stage.querySelector('canvas');
+    if (!canvas) return;
+    var label = world.type === 'market' && document.documentElement.lang === 'zh-Hant' ? '3D 霓虹夜市。水平拖曳旋轉；聚焦後可使用方向鍵。' : world.type === 'market' ? 'Three-dimensional neon night market. Drag horizontally to rotate; use arrow keys while focused.' : 'Three-dimensional game scene. Drag horizontally to rotate; use arrow keys while focused.';
+    if (canvas.getAttribute('role') !== 'img') canvas.setAttribute('role', 'img');
+    if (canvas.getAttribute('aria-label') !== label) canvas.setAttribute('aria-label', label);
   }
 
   function resizeWorld(world) {
@@ -425,6 +542,7 @@
     var seconds = (now - world.startTime) / 1000;
     world.root.rotation.y += 0.00028;
     if (world.type === 'grid') animateGrid(world, seconds, now);
+    else if (world.type === 'market') animateMarket(world, seconds, now);
     else animateTrace(world, seconds, now);
     world.renderer.render(world.scene, world.camera);
     world.raf = requestAnimationFrame(function () { animateWorld(world); });
@@ -469,6 +587,23 @@
       world.tracePulse.position.copy(world.traceRoute.getPointAt(idle));
     }
     if (world.consoleLight) world.consoleLight.material.emissiveIntensity = world.frame && world.frame.output ? 3.8 : 0.7;
+  }
+
+  function animateMarket(world, seconds, now) {
+    world.marketCoins.forEach(function (coin) {
+      coin.mesh.rotation.y += coin.tiny ? 0.025 : 0.018;
+      coin.mesh.position.y = coin.baseY + Math.sin(seconds * 1.8 + coin.phase) * (coin.tiny ? 0.08 : 0.045);
+      if (coin.tiny) coin.mesh.rotation.x += 0.012;
+    });
+    world.marketLanterns.forEach(function (lantern, index) {
+      lantern.mesh.position.y = lantern.baseY + Math.sin(seconds * 1.25 + lantern.phase) * 0.08;
+      var pulse = now < world.pulseUntil ? 1 : 0;
+      lantern.material.emissiveIntensity = 1.2 + Math.sin(seconds * 2 + index) * 0.28 + pulse * 1.5;
+    });
+    world.marketStalls.forEach(function (stall, index) {
+      stall.display.rotation.y += 0.008 + index * 0.001;
+      stall.display.scale.setScalar(now < world.pulseUntil ? 1.12 : 1);
+    });
   }
 
   function drawOnce(world) {
