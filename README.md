@@ -6,6 +6,7 @@ A browser-based, one-to-one Java learning experience for students aged 12–18. 
 
 - English by default, with a Traditional Chinese interface switch.
 - Sequential investigation, tracing, debugging and independent implementation.
+- Playable 3D city-grid controls and a prediction-first, statement-by-statement trace in the first two levels.
 - Seven typed programs, with changed-input tests where applicable.
 - Animated scene transitions and true per-statement memory/output replay.
 - Pause, step and final-state controls; reduced-motion support.
@@ -16,6 +17,8 @@ A browser-based, one-to-one Java learning experience for students aged 12–18. 
 This repository contains only the static student website. GitHub Pages publishes the `main` branch from `/`. `.nojekyll` keeps the files unchanged. All project assets use relative paths, so the website supports the repository subpath.
 
 To preview locally, run `python3 -m http.server 4173` from this directory and open `http://127.0.0.1:4173/`.
+
+The 3D levels load a pinned Three.js module from jsDelivr. An internet connection is needed for the 3D visuals; the accessible sliders, prediction fields and trace controls remain available if the module cannot load.
 
 ## Learning and runtime scope
 

@@ -28,6 +28,16 @@ Object.assign(dictionary,{
 'A coastal city at night awaiting a verified power-system repair':'夜晚的海岸城市，等待電力系統通過修復驗證','Mira, your field engineer':'現場工程師 Mira','Mira, field engineer':'現場工程師 Mira','City reactor with its memory display':'城市反應爐與記憶體顯示器','The central energy reactor':'中央能源反應爐','The city awaiting a verified repair':'等待修復驗證的城市',
 'Program verified. You can continue.':'程式已通過驗證，可以繼續。','Some checks need revision. Read the console and test results.':'部分檢查需要修改，請閱讀執行結果與測試紀錄。','Repair verified. The city can reconnect.':'修復已通過驗證，城市可以重新連線。'
 });
+Object.assign(dictionary,{
+'LEVEL 1':'第 1 關','GRID CONTROL':'電網控制','LEVEL 2':'第 2 關','SIGNAL TRACE':'訊號追蹤',
+'Tune the readings':'調整感測讀值','Predict the stored value':'預測儲存值','Execute the assignment':'執行指定指令','Grid signal restored':'電網訊號已恢復',
+'LIVE BALANCE':'即時餘額','units':'單位','Drag to rotate the grid. The controls below change the live readings.':'拖曳旋轉城市電網。下方控制項會即時改變讀值。','Reset view':'重設視角','Reset 3D view':'重設 3D 視角','Connecting the 3D grid...':'正在連接 3D 電網……','Connecting the 3D trace relay...':'正在連接 3D 追蹤中繼站……','3D view unavailable. Use the controls below; your mission still works.':'目前無法顯示 3D 畫面，仍可使用下方控制項完成任務。',
+'Set both sensor readings':'設定兩個感測讀值','Level 1 objectives':'第 1 關目標','Level 1: three-dimensional city power grid':'第 1 關：3D 城市電網','Level 2: three-dimensional Java memory trace':'第 2 關：3D Java 記憶體追蹤',
+'Java program, highlighted one statement at a time':'Java 程式，逐行醒目顯示','Variable memory after the current statement':'目前指令執行後的變數記憶體','PROGRAM OUTPUT':'程式輸出','No output yet.':'尚無輸出。','unassigned':'未指定','Lock your prediction, then step through the program to watch memory change.':'先鎖定預測，再逐行執行程式並觀察記憶體變化。','Predict both reports before the trace starts. Seal your answers, then execute each statement and watch the memory relay.':'請在追蹤開始前預測兩次報表。鎖定答案後，逐行執行指令並觀察記憶體中繼站。',
+'Execute next statement':'執行下一個指令','Trace complete':'追蹤完成','Prediction sealed':'預測已鎖定','Prediction sealed · trace complete':'預測已鎖定 · 追蹤完成','Revise prediction':'修改預測','Enter both predictions first, then seal them to activate the trace.':'請先輸入兩次預測，再鎖定並啟動追蹤。','Trace complete. Compare the two outputs with your prediction.':'追蹤完成。請比較兩次輸出與你的預測。',
+'Add your reasoning before sealing the prediction. Your teacher will review the explanation.':'鎖定預測前，請先寫下推理，老師會檢視你的說明。','The first report uses the earlier stored value. After the second calculation, the report uses the new readings. Recheck the assignment order.':'第一次報表使用較早儲存的值。第二次計算後，報表才會使用新的讀值。請重新檢查指定指令的順序。','Prediction locked.':'預測已鎖定。','Execute one statement at a time and watch the three stored variables.':'請逐一執行指令，觀察三個儲存中的變數。','Both reports verified: 85, then 105.':'兩次報表均已驗證：85，接著 105。','The first reads the earlier stored result. The second uses energy = 150 and used = 45.':'第一次讀取較早儲存的結果；第二次使用 energy = 150 與 used = 45。','Compare both reports with your prediction.':'請將兩次報表與你的預測比較。',
+'Three-dimensional game scene. Drag horizontally to rotate; use arrow keys while focused.':'3D 遊戲場景。水平拖曳以旋轉；聚焦後可使用方向鍵調整視角。','Seal prediction & activate trace':'鎖定預測並啟動追蹤','Trace step':'追蹤步驟'
+});
 let language='en';try{language=localStorage.getItem('future-ui-language')==='zh-Hant'?'zh-Hant':'en'}catch(e){}
 const originals=new WeakMap(),attributeOriginals=new WeakMap();
 function translate(text){const lead=text.match(/^\s*/)[0],tail=text.match(/\s*$/)[0],s=text.trim();if(!s)return text;let result=dictionary[s];if(!result&&/^[.,]\s*/.test(s)){const rest=dictionary[s.replace(/^[.,]\s*/,'')];if(rest)result=(s[0]==='.'?'。':'，')+rest}
@@ -36,6 +46,8 @@ if(!result&&s.startsWith(teacherPrefix))result='讓學生自己打程式，執�
 if(!result){let match;
 if(match=s.match(/^SCENE (\d+) OF 6$/))result=`第 ${match[1]} 幕，共 6 幕`;
 else if(match=s.match(/^Coding program (\d+) of 7 · about (\d+) minutes · type, test, revise$/))result=`程式任務 ${match[1]}／7 · 約 ${match[2]} 分鐘 · 撰寫、測試、修改`;
+else if(match=s.match(/^(\d+) \/ (\d+) statements$/))result=match[1]+'／'+match[2]+' 個指令';
+else if(match=s.match(/^Statement (\d+) of (\d+) is next\. Step once to update memory\.$/))result='接下來執行第 '+match[1]+'／'+match[2]+' 個指令。按一次按鈕更新記憶體。';
 else if(match=s.match(/^([1-6])\. (.+)$/))result=match[1]+'. '+translate(match[2]).trim();
 else if(match=s.match(/^(Pass|Revise) · (.+)$/))result=(match[1]==='Pass'?'通過':'需修改')+' · '+translate(match[2]).trim();
 else if(match=s.match(/^Teacher mode: (on|off)$/))result='教師模式：'+(match[1]==='on'?'開啟':'關閉');
