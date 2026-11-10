@@ -36,6 +36,7 @@
     var saved = JSON.parse(localStorage.getItem(storeKey) || 'null');
     if (saved && typeof saved === 'object') state = Object.assign(blankState(), saved);
   } catch (error) {}
+  var savedStage = Math.min(state.stage, state.maxStage);
 
   function lang() { return document.documentElement.lang === 'zh-Hant' ? 'zh' : 'en'; }
   function tx(en, zh) { return lang() === 'zh' ? zh : en; }
@@ -45,7 +46,8 @@
     });
   }
   function save() {
-    try { localStorage.setItem(storeKey, JSON.stringify(state)); } catch (error) {}
+    if (state.stage <= state.maxStage) savedStage = state.stage;
+    try { localStorage.setItem(storeKey, JSON.stringify(Object.assign({}, state, { stage: savedStage }))); } catch (error) {}
   }
   function pulse(success) {
     window.dispatchEvent(new CustomEvent('mission:market-beat', { detail: { success: success } }));
@@ -59,14 +61,17 @@
     if (toolsButton) toolsButton.hidden = active;
     if (footer) footer.textContent = active ? 'Expressions & operators · One-to-one learning' : 'Java foundations · One-to-one learning';
   }
-  function activate(lesson) {
+  function activate(lesson, target) {
     active = lesson === 2;
     setActiveTab();
     if (active) {
+      if (target !== undefined) state.stage = target;
+      document.querySelector('#mission-tools').hidden = true;
       main.setAttribute('data-no-translate', '');
       document.body.classList.add('week-two-active');
       render();
     } else {
+      if (target !== undefined) m.scene = target;
       main.removeAttribute('data-no-translate');
       document.body.classList.remove('week-two-active');
       basePaint();
@@ -77,12 +82,11 @@
     button.addEventListener('click', function () { activate(Number(button.dataset.courseLesson)); });
   });
 
-  var stageNames = titles.map(function (row) { return tx(row[0], row[1]); });
   function route() {
     return '<nav class="market-route" aria-label="' + esc(tx('Week 2 mission route', '第二週任務路線')) + '"><ol>' + titles.map(function (row, index) {
       var current = index === state.stage;
-      var complete = index < state.stage || (index === 5 && state.completed);
-      var locked = index > state.maxStage;
+      var complete = index < state.maxStage || (index === 5 && state.completed);
+      var locked = index > state.maxStage && !current;
       return '<li class="' + (current ? 'current ' : '') + (complete ? 'complete ' : '') + (locked ? 'locked' : '') + '"><button type="button" data-stage="' + index + '" ' + (locked ? 'disabled' : '') + (current ? ' aria-current="step"' : '') + '><span class="route-number">' + (complete ? '✓' : String(index + 1).padStart(2, '0')) + '</span><span class="route-name">' + esc(tx(row[0], row[1])) + '</span></button></li>';
     }).join('') + '</ol></nav>';
   }
@@ -240,7 +244,7 @@
   }
 
   function nextStage(stage) {
-    if (stage > state.maxStage) state.maxStage = stage;
+    if (state.stage <= state.maxStage && stage > state.maxStage) state.maxStage = stage;
     state.stage = stage;
     save(); render();
     main.focus({ preventScroll: true });
@@ -389,6 +393,61 @@
     var link = document.createElement('a'); var url = URL.createObjectURL(new Blob([report], { type: 'text/plain' }));
     link.href = url; link.download = 'lesson-2-precision-market-evidence.txt'; link.click();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  var jumpDialog = document.createElement('dialog');
+  jumpDialog.className = 'teacher-jump';
+  jumpDialog.setAttribute('aria-labelledby', 'teacher-jump-title');
+  jumpDialog.setAttribute('data-no-translate', '');
+  document.body.appendChild(jumpDialog);
+
+  function openTeacherJump() {
+    if (jumpDialog.open) return;
+    var gridChinese = ['求救訊息', '控制室', '追蹤故障', '修復程式', '恢復電網', '驗證修復'];
+    var lessons = [
+      { label: tx('Lesson 1 · Restore the Grid', '第 1 課 · 修復電網'), names: tx(sceneNames, gridChinese) },
+      { label: tx('Lesson 2 · Precision Market', '第 2 課 · 精準市集'), names: titles.map(function (row) { return tx(row[0], row[1]); }) }
+    ];
+    var options = lessons.map(function (lesson, index) {
+      var entries = lesson.names.map(function (name, stage) {
+        return '<option value="' + index + ':' + stage + '">' + (stage + 1) + ' · ' + esc(name) + '</option>';
+      }).join('');
+      return '<optgroup label="' + esc(lesson.label) + '">' + entries + '</optgroup>';
+    }).join('');
+
+    jumpDialog.innerHTML = '<form>' +
+      '<h2 id="teacher-jump-title">' + tx('Jump to a level', '教師跳關') + '</h2>' +
+      '<p>' + tx('Open any level for your session. Completed work and student unlocks are tracked separately.', '上課時可直接開啟任一關。系統會分開記錄學生完成的作答和已解鎖的關卡。') + '</p>' +
+      '<div class="field"><label for="teacher-jump-level">' + tx('Choose a lesson and level', '選擇課程與關卡') + '</label>' +
+      '<select id="teacher-jump-level" autofocus>' + options + '</select></div>' +
+      '<div class="teacher-jump-actions"><button type="button" class="quiet">' + tx('Cancel', '取消') + '</button>' +
+      '<button type="submit" class="primary">' + tx('Open level', '進入關卡') + '</button></div></form>';
+
+    var level = jumpDialog.querySelector('select');
+    level.value = active ? '1:' + state.stage : '0:' + m.scene;
+    jumpDialog.querySelector('button[type="button"]').onclick = function () { jumpDialog.close(); };
+    jumpDialog.querySelector('form').onsubmit = function (event) {
+      event.preventDefault();
+      var selection = level.value.split(':').map(Number);
+      jumpDialog.close();
+      toolsOpen = false;
+      activate(selection[0] + 1, selection[1]);
+      main.focus({ preventScroll: true });
+    };
+    jumpDialog.showModal();
+  }
+
+  document.addEventListener('keydown', function (event) {
+    if (event.repeat || event.code !== 'KeyJ' || !event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    openTeacherJump();
+  });
+
+  var entryUrl = new URL(window.location.href);
+  if (entryUrl.searchParams.get('teacher') === '1') {
+    entryUrl.searchParams.delete('teacher');
+    window.history.replaceState(window.history.state, '', entryUrl);
+    document.addEventListener('DOMContentLoaded', openTeacherJump, { once: true });
   }
 
   paint = function () { if (active) render(); else basePaint(); };
