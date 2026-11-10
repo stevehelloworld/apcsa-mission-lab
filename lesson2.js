@@ -13,6 +13,8 @@
   ];
   var minutes = [6, 16, 16, 12, 32, 8];
   var active = false;
+  var marketReviewStep = null;
+  var teacherNavigationOpen = false;
   var basePaint = paint;
 
   function blankState() {
@@ -61,7 +63,9 @@
     if (toolsButton) toolsButton.hidden = active;
     if (footer) footer.textContent = active ? 'Expressions & operators · One-to-one learning' : 'Java foundations · One-to-one learning';
   }
-  function activate(lesson, target) {
+  function activate(lesson, target, step) {
+    marketReviewStep = lesson === 2 ? (step ?? null) : null;
+    gridReviewStep = lesson === 1 ? (step ?? null) : null;
     active = lesson === 2;
     setActiveTab();
     if (active) {
@@ -75,6 +79,7 @@
       main.removeAttribute('data-no-translate');
       document.body.classList.remove('week-two-active');
       basePaint();
+      syncTeacherSteps();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -127,11 +132,12 @@
     { code: '(double) 11 / 4', answer: '2.75', en: 'The cast changes the division to floating-point before it runs.', zh: '型別轉換讓除法在執行前改為浮點數運算。' }
   ];
   function arcade() {
-    var item = expressions[state.exprIndex];
-    var finished = state.exprIndex >= expressions.length;
-    return '<section class="market-panel screen-enter"><div class="panel-rail"><span>' + esc(tx('OPERATOR ARCADE', '運算子街機')) + '</span><span>' + esc(tx('PUZZLE ', '題目 ')) + Math.min(state.exprIndex + 1, 5) + ' / 5</span></div>' +
+    var index = marketReviewStep ?? state.exprIndex;
+    var item = expressions[index];
+    var finished = index >= expressions.length;
+    return '<section class="market-panel screen-enter"><div class="panel-rail"><span>' + esc(tx('OPERATOR ARCADE', '運算子街機')) + '</span><span>' + esc(tx('PUZZLE ', '題目 ')) + Math.min(index + 1, 5) + ' / 5</span></div>' +
       (finished ? '<div class="mission-clear"><span class="clear-glyph">✓</span><h2>' + esc(tx('Signal sequence cleared!', '運算子序列已破解！')) + '</h2><p>' + esc(tx('You used precedence, integer division, remainder, and casting. Next, make the same rules move physical cargo.', '你已使用優先順序、整數除法、餘數與型別轉換。接下來，讓相同規則分配實際貨物。')) + '</p><button class="market-button market-button-primary" data-next-stage="2">' + esc(tx('Load the cargo crates', '裝載貨物箱')) + ' →</button></div>' :
-        '<div class="operator-challenge"><div class="operator-progress" aria-label="' + esc(tx('Puzzle progress', '題目進度')) + '">' + expressions.map(function (_, i) { return '<span class="' + (i < state.exprIndex ? 'done' : i === state.exprIndex ? 'now' : '') + '"></span>'; }).join('') + '</div><small>' + esc(tx('TYPE YOUR RESULT · NO RUN BUTTON YET', '輸入結果 · 暫不執行程式')) + '</small><div class="expression-display">' + esc(item.code) + '</div><p>' + esc(tx('Enter the value Java produces.', '輸入 Java 計算出的值。')) + '</p><div class="prediction-line"><input id="expression-answer" inputmode="decimal" value="' + esc(state.exprAnswers[state.exprIndex] || '') + '" placeholder="' + esc(tx('Predicted result', '預測結果')) + '" aria-label="' + esc(tx('Your predicted result', '你的預測結果')) + '"><button class="market-button market-button-primary" id="check-expression">' + esc(tx('Lock prediction', '鎖定預測')) + '</button></div><div id="expression-feedback" role="status" class="market-feedback"></div><details class="rule-card"><summary>' + esc(tx('Open the operator rule card', '打開運算子規則卡')) + '</summary><p><b>× / %</b> ' + esc(tx('before + / −', '先於 + / − 執行')) + ' · ' + esc(tx('parentheses first', '括號優先')) + ' · <code>int / int</code> ' + esc(tx('keeps the whole-number quotient', '只保留整數商')) + '</p></details></div>') + '</section>';
+        '<div class="operator-challenge"><div class="operator-progress" aria-label="' + esc(tx('Puzzle progress', '題目進度')) + '">' + expressions.map(function (_, i) { return '<span class="' + (i === index ? 'now' : i < state.exprIndex ? 'done' : '') + '"></span>'; }).join('') + '</div><small>' + esc(tx('TYPE YOUR RESULT · NO RUN BUTTON YET', '輸入結果 · 暫不執行程式')) + '</small><div class="expression-display">' + esc(item.code) + '</div><p>' + esc(tx('Enter the value Java produces.', '輸入 Java 計算出的值。')) + '</p><div class="prediction-line"><input id="expression-answer" inputmode="decimal" value="' + esc(state.exprAnswers[index] || '') + '" placeholder="' + esc(tx('Predicted result', '預測結果')) + '" aria-label="' + esc(tx('Your predicted result', '你的預測結果')) + '"><button class="market-button market-button-primary" id="check-expression">' + esc(tx('Lock prediction', '鎖定預測')) + '</button></div><div id="expression-feedback" role="status" class="market-feedback"></div><details class="rule-card"><summary>' + esc(tx('Open the operator rule card', '打開運算子規則卡')) + '</summary><p><b>× / %</b> ' + esc(tx('before + / −', '先於 + / − 執行')) + ' · ' + esc(tx('parentheses first', '括號優先')) + ' · <code>int / int</code> ' + esc(tx('keeps the whole-number quotient', '只保留整數商')) + '</p></details></div>') + '</section>';
   }
 
   function cargoTokens(count) {
@@ -159,10 +165,11 @@
   ];
   function normalizeJava(line) { return line.toLowerCase().replace(/\s+/g, '').replace(/;?$/, ';'); }
   function repairBench() {
-    var finished = state.repairIndex >= repairs.length;
+    var index = marketReviewStep ?? state.repairIndex;
+    var finished = index >= repairs.length;
     if (finished) return '<section class="market-panel screen-enter"><div class="mission-clear"><span class="clear-glyph">✓</span><h2>' + esc(tx('Counter repaired. Now build it.', '計算台已修復，接著親手打造。')) + '</h2><p>' + esc(tx('You found a stale calculation, a type mismatch, and a cleaner update. The next stage is all yours: three programs, typed from the specification.', '你找出了過期計算、型別不符，以及更簡潔的更新方式。下一階段由你親手完成：依照規格輸入三個程式。')) + '</p><button class="market-button market-button-primary" data-next-stage="4">' + esc(tx('Open the coding booth', '進入程式工作站')) + ' →</button></div></section>';
-    var item = repairs[state.repairIndex];
-    return '<section class="market-panel screen-enter"><div class="panel-rail"><span>' + esc(tx('TYPE & OPERATOR REPAIR', '型別與運算子修復')) + '</span><span>' + (state.repairIndex + 1) + ' / 3</span></div><div class="repair-layout"><div class="repair-progress">' + repairs.map(function (_, i) { return '<span class="' + (i < state.repairIndex ? 'fixed' : i === state.repairIndex ? 'active' : '') + '">' + (i < state.repairIndex ? '✓' : String(i + 1).padStart(2, '0')) + '</span>'; }).join('') + '</div><div class="repair-job"><small>' + esc(tx('FAULTY JAVA · READ THE REQUIREMENT', '故障 Java 程式 · 閱讀規格')) + '</small><pre class="market-code-block">' + esc(item.code) + '</pre><p>' + esc(tx(item.label[0], item.label[1])) + '</p><input id="repair-answer" class="repair-input" value="' + esc(state.repairs[state.repairIndex] || '') + '" spellcheck="false" autocomplete="off" placeholder="' + esc(tx('Type your corrected Java line, including ;', '輸入修正後的 Java 指令，包含分號 ;')) + '"><div class="repair-buttons"><button class="market-button market-button-primary" id="check-repair">' + esc(tx('Compile this repair', '檢查這項修復')) + '</button><details class="rule-card"><summary>' + esc(tx('Hint', '提示')) + '</summary><p>' + esc(tx(item.hint[0], item.hint[1])) + '</p></details></div><div class="market-feedback" id="repair-feedback" role="status"></div></div></div><div class="repair-lesson"><b>' + esc(tx('AP NOTE', 'AP 重點')) + '</b><span>' + esc(tx('A double variable does not retroactively turn int / int into decimal division.', 'double 變數不會回頭把 int / int 變成小數除法。')) + '</span></div></section>';
+    var item = repairs[index];
+    return '<section class="market-panel screen-enter"><div class="panel-rail"><span>' + esc(tx('TYPE & OPERATOR REPAIR', '型別與運算子修復')) + '</span><span>' + (index + 1) + ' / 3</span></div><div class="repair-layout"><div class="repair-progress">' + repairs.map(function (_, i) { return '<span class="' + (i === index ? 'active' : i < state.repairIndex ? 'fixed' : '') + '">' + (i < state.repairIndex && i !== index ? '✓' : String(i + 1).padStart(2, '0')) + '</span>'; }).join('') + '</div><div class="repair-job"><small>' + esc(tx('FAULTY JAVA · READ THE REQUIREMENT', '故障 Java 程式 · 閱讀規格')) + '</small><pre class="market-code-block">' + esc(item.code) + '</pre><p>' + esc(tx(item.label[0], item.label[1])) + '</p><input id="repair-answer" class="repair-input" value="' + esc(state.repairs[index] || '') + '" spellcheck="false" autocomplete="off" placeholder="' + esc(tx('Type your corrected Java line, including ;', '輸入修正後的 Java 指令，包含分號 ;')) + '"><div class="repair-buttons"><button class="market-button market-button-primary" id="check-repair">' + esc(tx('Compile this repair', '檢查這項修復')) + '</button><details class="rule-card"><summary>' + esc(tx('Hint', '提示')) + '</summary><p>' + esc(tx(item.hint[0], item.hint[1])) + '</p></details></div><div class="market-feedback" id="repair-feedback" role="status"></div></div></div><div class="repair-lesson"><b>' + esc(tx('AP NOTE', 'AP 重點')) + '</b><span>' + esc(tx('A double variable does not retroactively turn int / int into decimal division.', 'double 變數不會回頭把 int / int 變成小數除法。')) + '</span></div></section>';
   }
 
   var codingTasks = [
@@ -201,14 +208,15 @@
     return result;
   }
   function coding() {
-    var task = codingTasks[state.codeTask];
-    var checks = state.codeChecks[state.codeTask] || [];
-    return '<section class="market-panel screen-enter"><div class="panel-rail"><span>' + esc(tx('CODING BOOTH · TYPE YOUR PROGRAMS', '程式工作站 · 親手輸入程式')) + '</span><span>' + esc(tx('32 MIN · 3 PROGRAMS', '32 分鐘 · 3 個程式')) + '</span></div><div class="coding-task-tabs">' + codingTasks.map(function (item, index) { return '<button type="button" data-code-task="' + index + '" ' + (index === state.codeTask ? 'aria-current="step"' : '') + (index > state.codeTask && !state.codePassed[index - 1] ? 'disabled' : '') + '><span>' + String(index + 1).padStart(2, '0') + '</span><b>' + esc(tx(item.title[0], item.title[1])) + '</b><small>' + item.time + ' ' + esc(tx('min', '分鐘')) + (state.codePassed[index] ? ' · ✓' : '') + '</small></button>'; }).join('') + '</div>' +
-      '<div class="coding-task-head"><div><small>' + esc(tx('PROGRAM ', '程式 ')) + (state.codeTask + 1) + ' / 3</small><h2>' + esc(tx(task.title[0], task.title[1])) + '</h2><p>' + esc(tx(task.en, task.zh)) + '</p></div><div class="typing-seal"><span>JAVA</span><b>' + task.time + '</b><small>' + esc(tx('MIN', '分鐘')) + '</small></div></div>' +
+    var index = marketReviewStep ?? state.codeTask;
+    var task = codingTasks[index];
+    var checks = state.codeChecks[index] || [];
+    return '<section class="market-panel screen-enter"><div class="panel-rail"><span>' + esc(tx('CODING BOOTH · TYPE YOUR PROGRAMS', '程式工作站 · 親手輸入程式')) + '</span><span>' + esc(tx('32 MIN · 3 PROGRAMS', '32 分鐘 · 3 個程式')) + '</span></div><div class="coding-task-tabs">' + codingTasks.map(function (item, tab) { return '<button type="button" data-code-task="' + tab + '" ' + (tab === index ? 'aria-current="step"' : '') + (marketReviewStep === null && tab > index && !state.codePassed.slice(0, tab).every(Boolean) ? 'disabled' : '') + '><span>' + String(tab + 1).padStart(2, '0') + '</span><b>' + esc(tx(item.title[0], item.title[1])) + '</b><small>' + item.time + ' ' + esc(tx('min', '分鐘')) + (state.codePassed[tab] ? ' · ✓' : '') + '</small></button>'; }).join('') + '</div>' +
+      '<div class="coding-task-head"><div><small>' + esc(tx('PROGRAM ', '程式 ')) + (index + 1) + ' / 3</small><h2>' + esc(tx(task.title[0], task.title[1])) + '</h2><p>' + esc(tx(task.en, task.zh)) + '</p></div><div class="typing-seal"><span>JAVA</span><b>' + task.time + '</b><small>' + esc(tx('MIN', '分鐘')) + '</small></div></div>' +
       '<div class="coding-brief-grid"><div><b>' + esc(tx('SPECIFICATION', '程式規格')) + '</b><p>' + esc(tx(task.en, task.zh)) + '</p><small>' + esc(tx('Run once, inspect the checks, revise, then test the changed-input case.', '先執行一次、檢視測試、修改，再測試改變輸入後的結果。')) + '</small></div><details class="rule-card"><summary>' + esc(tx('Show one hint', '顯示一個提示')) + '</summary><p>' + esc(tx(task.hintEn, task.hintZh)) + '</p></details></div>' +
-      '<label class="editor-label" for="market-code-editor"><span>' + esc(tx('YOUR JAVA CODE', '你的 Java 程式碼')) + '</span><small>' + esc(tx('The checker tests behavior, types, and changed inputs.', '自動檢查會測試執行結果、型別與變更後的輸入。')) + '</small></label><textarea id="market-code-editor" class="market-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="' + esc(tx('Type your Java program', '輸入你的 Java 程式')) + '">' + esc(state.codeText[state.codeTask] || '') + '</textarea>' +
-      '<div class="coding-runline"><button class="market-button market-button-primary" id="run-market-code">' + esc(tx('Run & test this program', '執行並測試程式')) + ' ▶</button><span>' + esc(tx('Current version · ' + (state.codePassed[state.codeTask] ? 'passed' : 'not verified'), '目前版本 · ' + (state.codePassed[state.codeTask] ? '已通過' : '尚未驗證'))) + '</span></div>' +
-      (checks.length ? '<div class="market-code-evidence"><div class="market-console"><small>' + esc(tx('CONSOLE OUTPUT', '主控台輸出')) + '</small><pre>' + esc(state.codeOutput[state.codeTask] || '') + '</pre></div><ul class="market-checks">' + checks.map(function (check) { return '<li class="' + (check[1] ? 'pass' : 'retry') + '"><span>' + (check[1] ? '✓' : '↻') + '</span>' + esc(tx(check[0], translateCheck(check[0]))) + '</li>'; }).join('') + '</ul></div>' : '<p class="market-privacy-note">' + esc(tx('This browser runs a small Java practice subset, not a full Java compiler. Use your Java IDE for classes and methods.', '此瀏覽器使用精簡 Java 練習直譯器，並非完整 Java 編譯器。類別與方法請使用 Java IDE。')) + '</p>') +
+      '<label class="editor-label" for="market-code-editor"><span>' + esc(tx('YOUR JAVA CODE', '你的 Java 程式碼')) + '</span><small>' + esc(tx('The checker tests behavior, types, and changed inputs.', '自動檢查會測試執行結果、型別與變更後的輸入。')) + '</small></label><textarea id="market-code-editor" class="market-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="' + esc(tx('Type your Java program', '輸入你的 Java 程式')) + '">' + esc(state.codeText[index] || '') + '</textarea>' +
+      '<div class="coding-runline"><button class="market-button market-button-primary" id="run-market-code">' + esc(tx('Run & test this program', '執行並測試程式')) + ' ▶</button><span>' + esc(tx('Current version · ' + (state.codePassed[index] ? 'passed' : 'not verified'), '目前版本 · ' + (state.codePassed[index] ? '已通過' : '尚未驗證'))) + '</span></div>' +
+      (checks.length ? '<div class="market-code-evidence"><div class="market-console"><small>' + esc(tx('CONSOLE OUTPUT', '主控台輸出')) + '</small><pre>' + esc(state.codeOutput[index] || '') + '</pre></div><ul class="market-checks">' + checks.map(function (check) { return '<li class="' + (check[1] ? 'pass' : 'retry') + '"><span>' + (check[1] ? '✓' : '↻') + '</span>' + esc(tx(check[0], translateCheck(check[0]))) + '</li>'; }).join('') + '</ul></div>' : '<p class="market-privacy-note">' + esc(tx('This browser runs a small Java practice subset, not a full Java compiler. Use your Java IDE for classes and methods.', '此瀏覽器使用精簡 Java 練習直譯器，並非完整 Java 編譯器。類別與方法請使用 Java IDE。')) + '</p>') +
       (state.codePassed.every(Boolean) ? '<div class="mission-clear compact-clear"><span class="clear-glyph">✓</span><div><h3>' + esc(tx('All three programs verified.', '三個程式皆已驗證。')) + '</h3><p>' + esc(tx('Your final calculator passed its changed-input test. One AP-style trace remains.', '最後的計算器通過了更改輸入測試。還有一題 AP 風格追蹤題。')) + '</p></div><button class="market-button market-button-primary" data-next-stage="5">' + esc(tx('Open AP checkpoint', '前往 AP 檢核')) + ' →</button></div>' : '') +
       '<details class="rule-card market-tutor-prompt"><summary>' + esc(tx('Tutor prompt · explain before you run', '教師提問 · 執行前先說明')) + '</summary><p>' + esc(tx('Ask the student to trace one variable at each statement. Before the transfer test, ask which input change is most likely to expose a hard-coded answer.', '請學生逐行追蹤一個變數。轉移測試前，問哪種輸入變化最容易抓出寫死的答案。')) + '</p></details></section>';
   }
@@ -241,9 +249,11 @@
     var body = state.stage === 0 ? brief() : state.stage === 1 ? arcade() : state.stage === 2 ? cargo() : state.stage === 3 ? repairBench() : state.stage === 4 ? coding() : checkpoint();
     main.innerHTML = shell(body);
     bindStage();
+    syncTeacherSteps();
   }
 
   function nextStage(stage) {
+    marketReviewStep = null;
     if (state.stage <= state.maxStage && stage > state.maxStage) state.maxStage = stage;
     state.stage = stage;
     save(); render();
@@ -281,14 +291,15 @@
     var input = main.querySelector('#expression-answer');
     var check = main.querySelector('#check-expression');
     if (!input) return;
-    input.addEventListener('input', function () { state.exprAnswers[state.exprIndex] = input.value; save(); });
+    var index = marketReviewStep ?? state.exprIndex;
+    input.addEventListener('input', function () { state.exprAnswers[index] = input.value; save(); });
     check.addEventListener('click', function () {
-      var guess = input.value.trim(); state.exprAnswers[state.exprIndex] = guess; save();
-      var item = expressions[state.exprIndex];
+      var guess = input.value.trim(); state.exprAnswers[index] = guess; save();
+      var item = expressions[index];
       var correct = Math.abs(Number(guess) - Number(item.answer)) < 0.0001;
       var feedback = main.querySelector('#expression-feedback');
-      if (!correct) { feedback.textContent = state.exprIndex === 2 ? tx('Hint: both operands are int. What part of the quotient is kept?', '提示：兩個運算元都是 int。商數會保留哪一部分？') : state.exprIndex === 3 ? tx('Hint: % gives the amount left after forming whole groups.', '提示：% 會傳回分成整數組後剩下的數量。') : tx('Trace the operators in Java order. Parentheses first; then ×, /, %; then +, −.', '依 Java 順序追蹤運算子。先括號，再 ×、/、%，最後 +、−。'); feedback.className = 'market-feedback retry'; return; }
-      pulse(true); state.exprIndex += 1; save(); render();
+      if (!correct) { feedback.textContent = index === 2 ? tx('Hint: both operands are int. What part of the quotient is kept?', '提示：兩個運算元都是 int。商數會保留哪一部分？') : index === 3 ? tx('Hint: % gives the amount left after forming whole groups.', '提示：% 會傳回分成整數組後剩下的數量。') : tx('Trace the operators in Java order. Parentheses first; then ×, /, %; then +, −.', '依 Java 順序追蹤運算子。先括號，再 ×、/、%，最後 +、−。'); feedback.className = 'market-feedback retry'; return; }
+      acceptMarketAnswer('exprIndex', index, feedback, tx(item.en, item.zh));
     });
     input.addEventListener('keydown', function (event) { if (event.key === 'Enter') check.click(); });
   }
@@ -334,30 +345,45 @@
   }
   function bindRepairs() {
     var input = main.querySelector('#repair-answer'); if (!input) return;
-    input.addEventListener('input', function () { state.repairs[state.repairIndex] = input.value; save(); });
+    var index = marketReviewStep ?? state.repairIndex;
+    input.addEventListener('input', function () { state.repairs[index] = input.value; save(); });
     main.querySelector('#check-repair').onclick = function () {
-      var source = normalizeJava(input.value); state.repairs[state.repairIndex] = input.value; save();
-      var item = repairs[state.repairIndex]; var feedback = main.querySelector('#repair-feedback');
+      var source = normalizeJava(input.value); state.repairs[index] = input.value; save();
+      var item = repairs[index]; var feedback = main.querySelector('#repair-feedback');
       if (!item.accepts(source)) { feedback.textContent = tx('The repair does not match the requirement yet. ' + item.hint[0], '修復方式尚未符合規格。' + item.hint[1]); feedback.className = 'market-feedback retry'; return; }
-      pulse(true); state.repairIndex += 1; save(); render();
+      acceptMarketAnswer('repairIndex', index, feedback, tx('Repair verified.', '修復已驗證。'));
     };
     input.addEventListener('keydown', function (event) { if (event.key === 'Enter') main.querySelector('#check-repair').click(); });
   }
+  function acceptMarketAnswer(progressKey, index, feedback, message) {
+    if (index === state[progressKey]) state[progressKey] += 1;
+    save();
+    pulse(true);
+    if (marketReviewStep === null) render();
+    else {
+      feedback.textContent = message;
+      feedback.className = 'market-feedback success';
+    }
+  }
   function bindCoding() {
+    var index = marketReviewStep ?? state.codeTask;
     main.querySelectorAll('[data-code-task]').forEach(function (button) {
-      button.onclick = function () { var next = Number(button.dataset.codeTask); if (next <= state.codeTask || state.codePassed[next - 1]) { state.codeTask = next; save(); render(); } };
+      button.onclick = function () { var next = Number(button.dataset.codeTask); if (marketReviewStep !== null) marketReviewStep = next;
+        else if (next <= index || state.codePassed.slice(0, next).every(Boolean)) state.codeTask = next;
+        else return;
+        render(); };
     });
     var editor = main.querySelector('#market-code-editor');
-    editor.addEventListener('input', function () { state.codeText[state.codeTask] = editor.value; state.codePassed[state.codeTask] = false; state.codeChecks[state.codeTask] = []; save(); });
+    editor.addEventListener('input', function () { state.codeText[index] = editor.value; state.codePassed[index] = false; state.codeChecks[index] = []; save(); });
     main.querySelector('#run-market-code').onclick = function () {
-      state.codeText[state.codeTask] = editor.value;
+      state.codeText[index] = editor.value;
       var result;
-      try { result = codingTasks[state.codeTask].run(editor.value); }
+      try { result = codingTasks[index].run(editor.value); }
       catch (error) { result = { output: 'Statement error: ' + error.message, checks: [['Program runs without a Java error', false]] }; }
-      state.codeOutput[state.codeTask] = result.output || '(No output.)';
-      state.codeChecks[state.codeTask] = result.checks;
-      state.codePassed[state.codeTask] = result.checks.every(function (check) { return check[1]; });
-      save(); if (state.codePassed[state.codeTask]) pulse(true); render();
+      state.codeOutput[index] = result.output || '(No output.)';
+      state.codeChecks[index] = result.checks;
+      state.codePassed[index] = result.checks.every(function (check) { return check[1]; });
+      save(); if (state.codePassed[index]) pulse(true); render();
     };
   }
   function bindCheckpoint() {
@@ -401,37 +427,100 @@
   jumpDialog.setAttribute('data-no-translate', '');
   document.body.appendChild(jumpDialog);
 
+  var teacherStepsBar = document.createElement('nav');
+  teacherStepsBar.className = 'teacher-steps';
+  teacherStepsBar.hidden = true;
+  teacherStepsBar.setAttribute('data-no-translate', '');
+  teacherStepsBar.innerHTML = '<button type="button" class="quiet" data-previous-step></button>' +
+    '<button type="button" class="quiet" data-choose-step></button>' +
+    '<button type="button" class="quiet" data-next-step></button>' +
+    '<button type="button" class="quiet" data-exit-review></button>';
+  main.before(teacherStepsBar);
+
+  function gridLabel(name) {
+    return lang() === 'zh' ? (window.translateMissionLabel?.(name) ?? name) : name;
+  }
+
+  function stepNames(lesson, stage) {
+    if (lesson === 1) {
+      var labs = labsAt(stage);
+      return labs.length ? [gridLabel('Core investigation')].concat(labs.map(function (lab) { return gridLabel(lab.title); })) : [];
+    }
+    if (stage === 1) return expressions.map(function (item) { return item.code; });
+    if (stage === 3) return [
+      tx('Keep the decimal in the average', '保留平均值的小數'),
+      tx('Fix the variable type', '修正變數型別'),
+      tx('Shorten the increment', '簡化加一指令')
+    ];
+    if (stage === 4) return codingTasks.map(function (task) { return tx(task.title[0], task.title[1]); });
+    return [];
+  }
+
+  function currentTeacherLocation() {
+    if (!active) return [1, m.scene, currentGridStep()];
+    var step = state.stage === 1 ? state.exprIndex : state.stage === 3 ? state.repairIndex : state.codeTask;
+    return [2, state.stage, marketReviewStep ?? step];
+  }
+
+  function syncTeacherSteps() {
+    teacherStepsBar.hidden = !teacherNavigationOpen;
+    if (!teacherNavigationOpen) return;
+    var [lesson, stage, step] = currentTeacherLocation();
+    var count = stepNames(lesson, stage).length;
+    teacherStepsBar.setAttribute('aria-label', tx('Teacher review navigation', '教師複習導覽'));
+    var previous = teacherStepsBar.querySelector('[data-previous-step]');
+    var choose = teacherStepsBar.querySelector('[data-choose-step]');
+    var next = teacherStepsBar.querySelector('[data-next-step]');
+    var exit = teacherStepsBar.querySelector('[data-exit-review]');
+    previous.textContent = tx('← Previous step', '← 上一小關');
+    choose.textContent = tx('Choose a step', '選擇關卡');
+    next.textContent = tx('Next step →', '下一小關 →');
+    exit.textContent = tx('Exit review', '結束複習');
+    previous.disabled = !count || step < 1;
+    next.disabled = !count || step + 1 >= count;
+    previous.onclick = function () { activate(lesson, stage, step - 1); };
+    choose.onclick = openTeacherJump;
+    next.onclick = function () { activate(lesson, stage, step + 1); };
+    exit.onclick = function () { teacherNavigationOpen = false; activate(lesson); main.focus({ preventScroll: true }); };
+  }
+
   function openTeacherJump() {
     if (jumpDialog.open) return;
-    var gridChinese = ['求救訊息', '控制室', '追蹤故障', '修復程式', '恢復電網', '驗證修復'];
     var lessons = [
-      { label: tx('Lesson 1 · Restore the Grid', '第 1 課 · 修復電網'), names: tx(sceneNames, gridChinese) },
+      { label: tx('Lesson 1 · Restore the Grid', '第 1 課 · 修復電網'), names: sceneNames.map(gridLabel) },
       { label: tx('Lesson 2 · Precision Market', '第 2 課 · 精準市集'), names: titles.map(function (row) { return tx(row[0], row[1]); }) }
     ];
     var options = lessons.map(function (lesson, index) {
       var entries = lesson.names.map(function (name, stage) {
-        return '<option value="' + index + ':' + stage + '">' + (stage + 1) + ' · ' + esc(name) + '</option>';
+        var target = (index + 1) + ':' + stage;
+        var parent = '<option value="' + target + '">' + (stage + 1) + ' · ' + esc(name) + '</option>';
+        var children = stepNames(index + 1, stage).map(function (stepName, step) {
+          return '<option value="' + target + ':' + step + '">' + (stage + 1) + '.' + (step + 1) + ' · ' + esc(stepName) + '</option>';
+        }).join('');
+        return parent + children;
       }).join('');
       return '<optgroup label="' + esc(lesson.label) + '">' + entries + '</optgroup>';
     }).join('');
 
     jumpDialog.innerHTML = '<form>' +
       '<h2 id="teacher-jump-title">' + tx('Jump to a level', '教師跳關') + '</h2>' +
-      '<p>' + tx('Open any level for your session. Completed work and student unlocks are tracked separately.', '上課時可直接開啟任一關。系統會分開記錄學生完成的作答和已解鎖的關卡。') + '</p>' +
-      '<div class="field"><label for="teacher-jump-level">' + tx('Choose a lesson and level', '選擇課程與關卡') + '</label>' +
+      '<p>' + tx('Choose a whole level or open an individual question or program.', '可以選整個大關，也可以直接開啟其中一道題目或程式練習。') + '</p>' +
+      '<div class="field"><label for="teacher-jump-level">' + tx('Choose a level or step', '選擇大關或小關') + '</label>' +
       '<select id="teacher-jump-level" autofocus>' + options + '</select></div>' +
       '<div class="teacher-jump-actions"><button type="button" class="quiet">' + tx('Cancel', '取消') + '</button>' +
-      '<button type="submit" class="primary">' + tx('Open level', '進入關卡') + '</button></div></form>';
+      '<button type="submit" class="primary">' + tx('Open selection', '開啟選取的關卡') + '</button></div></form>';
 
     var level = jumpDialog.querySelector('select');
-    level.value = active ? '1:' + state.stage : '0:' + m.scene;
+    var [lesson, stage, step] = currentTeacherLocation();
+    level.value = lesson + ':' + stage + (step < stepNames(lesson, stage).length ? ':' + step : '');
     jumpDialog.querySelector('button[type="button"]').onclick = function () { jumpDialog.close(); };
     jumpDialog.querySelector('form').onsubmit = function (event) {
       event.preventDefault();
       var selection = level.value.split(':').map(Number);
       jumpDialog.close();
       toolsOpen = false;
-      activate(selection[0] + 1, selection[1]);
+      teacherNavigationOpen = true;
+      activate(selection[0], selection[1], selection[2]);
       main.focus({ preventScroll: true });
     };
     jumpDialog.showModal();
@@ -450,13 +539,17 @@
     document.addEventListener('DOMContentLoaded', openTeacherJump, { once: true });
   }
 
-  paint = function () { if (active) render(); else basePaint(); };
+  paint = function () {
+    if (active) render();
+    else { basePaint(); syncTeacherSteps(); }
+  };
   var seenLanguage = document.documentElement.lang || 'en';
   new MutationObserver(function () {
     var currentLanguage = document.documentElement.lang || 'en';
     if (currentLanguage === seenLanguage) return;
     seenLanguage = currentLanguage;
-    if (active && main.getAttribute('data-no-translate') !== null) render();
+    if (active) render();
+    else syncTeacherSteps();
   })
     .observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
   setActiveTab();
