@@ -13,6 +13,8 @@
   ];
   var minutes = [6, 16, 16, 12, 32, 8];
   var active = false;
+  var campaign = window.CourseCampaign;
+  var campaignActive = false;
   var marketReviewStep = null;
   var teacherNavigationOpen = false;
   var basePaint = paint;
@@ -56,14 +58,33 @@
   }
   function setActiveTab() {
     tabs.forEach(function (button) {
-      var selected = Number(button.dataset.courseLesson) === (active ? 2 : 1);
+      var selected = !campaignActive && Number(button.dataset.courseLesson) === (active ? 2 : 1);
       button.setAttribute('aria-pressed', String(selected));
     });
+    document.querySelector('[data-campaign-open="0"]')?.setAttribute('aria-pressed', String(campaignActive && campaign.location()?.[0] === 0));
+    if (campaignActive) {
+      if (title) title.textContent = tx('AP CSA Mission Lab', 'AP CSA 任務實驗室');
+      if (toolsButton) toolsButton.hidden = true;
+      if (footer) footer.textContent = tx('AP CSA practice', 'AP CSA 練習');
+      return;
+    }
     if (title) title.textContent = active ? 'Lesson 2 · Precision Market' : 'Lesson 1 · Restore the Grid';
     if (toolsButton) toolsButton.hidden = active;
     if (footer) footer.textContent = active ? 'Expressions & operators · One-to-one learning' : 'Java foundations · One-to-one learning';
   }
   function activate(lesson, target, step) {
+    if (lesson === 0 || lesson >= 3) {
+      if (!campaign || !campaign.open(lesson, step ?? target, teacherNavigationOpen)) return;
+      active = false;
+      campaignActive = true;
+      document.body.classList.remove('week-two-active');
+      document.querySelector('#mission-tools').hidden = true;
+      setActiveTab();
+      syncTeacherSteps();
+      return;
+    }
+    campaign?.hide();
+    campaignActive = false;
     marketReviewStep = lesson === 2 ? (step ?? null) : null;
     gridReviewStep = lesson === 1 ? (step ?? null) : null;
     active = lesson === 2;
@@ -84,7 +105,21 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   tabs.forEach(function (button) {
-    button.addEventListener('click', function () { activate(Number(button.dataset.courseLesson)); });
+    button.addEventListener('click', function () { teacherNavigationOpen = false; activate(Number(button.dataset.courseLesson)); });
+  });
+
+  document.addEventListener('click', function (event) {
+    var target = event.target.closest('[data-campaign-open]');
+    if (!target) return;
+    teacherNavigationOpen = false;
+    activate(Number(target.dataset.campaignOpen));
+  });
+  window.addEventListener('campaign:open', function (event) {
+    teacherNavigationOpen = false;
+    activate(event.detail.id, event.detail.step);
+  });
+  window.addEventListener('campaign:teacher-step', function (event) {
+    activate(event.detail[0], 0, event.detail[1]);
   });
 
   function route() {
@@ -224,7 +259,7 @@
   var apAnswers = ['3.0 3.0', '3.0 3.5', '3.5 3.5', '3 3.5'];
   function checkpoint() {
     return '<section class="market-panel screen-enter"><div class="panel-rail"><span>' + esc(tx('AP CHECKPOINT · 1 QUESTION', 'AP 闖關檢核 · 1 題')) + '</span><span>' + esc(tx('TRACE BEFORE CHOOSING', '先追蹤再作答')) + '</span></div><div class="checkpoint-layout"><div class="checkpoint-boss"><div class="boss-orbit">%<span>/</span></div><small>' + esc(tx('FINAL SCANNER', '最終掃描器')) + '<h2>' + esc(tx('Catch the type behavior.', '找出型別行為。')) + '</h2><p>' + esc(tx('Trace each expression before it is stored. Choose the exact console output.', '先追蹤每個運算式，再看它如何儲存。選出精確的主控台輸出。')) + '</p></div><div class="checkpoint-code"><pre class="market-code-block">int a = 7;\nint b = 2;\ndouble x = a / b;\ndouble y = (double) a / b;\nSystem.out.println(x + " " + y);</pre><fieldset class="answer-options"><legend>' + esc(tx('What is printed?', '會輸出什麼？')) + '</legend>' + apAnswers.map(function (answer, index) { var label = String.fromCharCode(65 + index); return '<label class="answer-option"><input type="radio" name="market-ap-answer" value="' + esc(label) + '" ' + (state.apChoice === label ? 'checked' : '') + '><span class="answer-letter">' + label + '</span><code>' + esc(answer) + '</code></label>'; }).join('') + '</fieldset><button class="market-button market-button-primary" id="check-ap-answer">' + esc(tx('Check my answer', '檢查答案')) + '</button><p class="market-feedback" id="ap-feedback" role="status"></p></div></div>' +
-      (state.apChoice === 'B' ? '<div class="ap-explanation"><b>' + esc(tx('Correct · integer division first', '正確 · 先執行整數除法')) + '</b><p>' + esc(tx('For x, 7 / 2 is evaluated as int / int, so it becomes 3 before assignment to double. For y, the cast makes the division 7.0 / 2, which is 3.5.', '計算 x 時，7 / 2 會先以 int / int 執行，因此在指定給 double 前已變成 3。計算 y 時，型別轉換讓運算變成 7.0 / 2，所以結果是 3.5。')) + '</p><label for="market-reflection">' + esc(tx('Explain why x and y differ. Your tutor reviews this response.', '說明 x 和 y 為什麼不同。老師會檢視你的回答。')) + '</label><textarea id="market-reflection" placeholder="' + esc(tx('Use the words integer division, cast, or double.', '請使用整數除法、型別轉換或 double 等詞說明。')) + '">' + esc(state.reflection) + '</textarea><button class="market-button market-button-primary" id="finish-market-mission" ' + (state.completed || !state.reflection.trim() ? 'disabled' : '') + '>' + esc(tx(state.completed ? 'Evidence saved' : 'Submit mission evidence', state.completed ? '學習證據已儲存' : '提交任務證據')) + '</button>' + (state.completed ? '<div class="mission-complete"><span>✦</span><div><b>' + esc(tx('Market systems calibrated.', '市集計算系統已校準。')) + '</b><p>' + esc(tx('You predicted, coded, tested changed inputs, and explained the AP rule. Your Lesson 2 evidence is saved on this device.', '你完成了預測、打碼、變更輸入測試，並說明 AP 規則。第二課學習證據已儲存於此裝置。')) + '</p></div><button class="market-button" id="download-market-evidence">' + esc(tx('Download evidence', '下載學習紀錄')) + ' ↓</button></div>' : '') + '</div>' : '') + '</section>';
+      (state.apChoice === 'B' ? '<div class="ap-explanation"><b>' + esc(tx('Correct · integer division first', '正確 · 先執行整數除法')) + '</b><p>' + esc(tx('For x, 7 / 2 is evaluated as int / int, so it becomes 3 before assignment to double. For y, the cast makes the division 7.0 / 2, which is 3.5.', '計算 x 時，7 / 2 會先以 int / int 執行，因此在指定給 double 前已變成 3。計算 y 時，型別轉換讓運算變成 7.0 / 2，所以結果是 3.5。')) + '</p><label for="market-reflection">' + esc(tx('Explain why x and y differ. Your tutor reviews this response.', '說明 x 和 y 為什麼不同。老師會檢視你的回答。')) + '</label><textarea id="market-reflection" placeholder="' + esc(tx('Use the words integer division, cast, or double.', '請使用整數除法、型別轉換或 double 等詞說明。')) + '">' + esc(state.reflection) + '</textarea><button class="market-button market-button-primary" id="finish-market-mission" ' + (state.completed || !state.reflection.trim() ? 'disabled' : '') + '>' + esc(tx(state.completed ? 'Evidence saved' : 'Submit mission evidence', state.completed ? '學習證據已儲存' : '提交任務證據')) + '</button>' + (state.completed ? '<div class="mission-complete"><span>✦</span><div><b>' + esc(tx('Market systems calibrated.', '市集計算系統已校準。')) + '</b><p>' + esc(tx('You predicted, coded, tested changed inputs, and explained the AP rule. Your Lesson 2 evidence is saved on this device.', '你完成了預測、打碼、變更輸入測試，並說明 AP 規則。第二課學習證據已儲存於此裝置。')) + '</p></div><button class="market-button" id="download-market-evidence">' + esc(tx('Download evidence', '下載學習紀錄')) + ' ↓</button><button type="button" class="market-button market-button-primary" data-campaign-open="3">' + esc(tx('Open Lesson 3', '開啟第 3 課')) + '</button></div>' : '') + '</div>' : '') + '</section>';
   }
   function translateCheck(en) {
     var map = {
@@ -442,6 +477,7 @@
   }
 
   function stepNames(lesson, stage) {
+    if (lesson >= 3) return campaign.sectionNames(lesson);
     if (lesson === 1) {
       var labs = labsAt(stage);
       return labs.length ? [gridLabel('Core investigation')].concat(labs.map(function (lab) { return gridLabel(lab.title); })) : [];
@@ -457,6 +493,7 @@
   }
 
   function currentTeacherLocation() {
+    if (campaignActive) return campaign.location();
     if (!active) return [1, m.scene, currentGridStep()];
     var step = state.stage === 1 ? state.exprIndex : state.stage === 3 ? state.repairIndex : state.codeTask;
     return [2, state.stage, marketReviewStep ?? step];
@@ -481,7 +518,7 @@
     previous.onclick = function () { activate(lesson, stage, step - 1); };
     choose.onclick = openTeacherJump;
     next.onclick = function () { activate(lesson, stage, step + 1); };
-    exit.onclick = function () { teacherNavigationOpen = false; activate(lesson); main.focus({ preventScroll: true }); };
+    exit.onclick = function () { teacherNavigationOpen = false; activate(lesson < 3 || campaign.isUnlocked(lesson) ? lesson : 0); main.focus({ preventScroll: true }); };
   }
 
   function openTeacherJump() {
@@ -490,6 +527,9 @@
       { label: tx('Lesson 1 · Restore the Grid', '第 1 課 · 修復電網'), names: sceneNames.map(gridLabel) },
       { label: tx('Lesson 2 · Precision Market', '第 2 課 · 精準市集'), names: titles.map(function (row) { return tx(row[0], row[1]); }) }
     ];
+    if (campaign) campaign.titles().forEach(function (name, index) {
+      lessons.push({ label: tx('Lesson ', '第 ') + (index + 3) + tx(' · ', ' 課 · ') + name, names: [tx('Mission briefing', '任務簡報')] });
+    });
     var options = lessons.map(function (lesson, index) {
       var entries = lesson.names.map(function (name, stage) {
         var target = (index + 1) + ':' + stage;
@@ -497,7 +537,7 @@
         var children = stepNames(index + 1, stage).map(function (stepName, step) {
           return '<option value="' + target + ':' + step + '">' + (stage + 1) + '.' + (step + 1) + ' · ' + esc(stepName) + '</option>';
         }).join('');
-        return parent + children;
+        return index < 2 ? parent + children : children;
       }).join('');
       return '<optgroup label="' + esc(lesson.label) + '">' + entries + '</optgroup>';
     }).join('');
@@ -512,7 +552,7 @@
 
     var level = jumpDialog.querySelector('select');
     var [lesson, stage, step] = currentTeacherLocation();
-    level.value = lesson + ':' + stage + (step < stepNames(lesson, stage).length ? ':' + step : '');
+    if (lesson) level.value = lesson + ':' + stage + (step < stepNames(lesson, stage).length ? ':' + step : '');
     jumpDialog.querySelector('button[type="button"]').onclick = function () { jumpDialog.close(); };
     jumpDialog.querySelector('form').onsubmit = function (event) {
       event.preventDefault();
@@ -540,7 +580,8 @@
   }
 
   paint = function () {
-    if (active) render();
+    if (campaignActive) { campaign.render(); syncTeacherSteps(); }
+    else if (active) render();
     else { basePaint(); syncTeacherSteps(); }
   };
   var seenLanguage = document.documentElement.lang || 'en';
@@ -548,9 +589,11 @@
     var currentLanguage = document.documentElement.lang || 'en';
     if (currentLanguage === seenLanguage) return;
     seenLanguage = currentLanguage;
-    if (active) render();
+    if (campaignActive) { campaign.render(); setActiveTab(); syncTeacherSteps(); }
+    else if (active) render();
     else syncTeacherSteps();
   })
     .observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
-  setActiveTab();
+  if (campaign) activate(0);
+  else setActiveTab();
 })();

@@ -1,35 +1,28 @@
 # Debug the Future — AP CSA Mission Lab
 
-A browser-based, one-to-one Java learning experience for students aged 12–18. Lesson 1 is a city-repair mission; Lesson 2 is a separate 90-minute night-market mission about expressions and type behavior. Both include progressive challenges, student-written Java, changed-input checks, bilingual controls, and local evidence export.
+Fifteen Java missions for learners aged 12–18 working one-to-one with a tutor. The mission map covers objects and methods, selection and iteration, class creation, data collections, and original exam practice.
 
-## Features
+## Playing and teaching
 
-- English by default, with a Traditional Chinese interface switch.
-- Two selectable, sequential course missions: Lesson 1 · Restore the Grid and Lesson 2 · Precision Market.
-- Lesson 1: investigation, state tracing, debugging, and seven typed programs.
-- Lesson 2: expression-order puzzles, animated integer division/remainder distribution, type repairs, three typed programs, and an AP-style checkpoint.
-- Playable 3D city grid, statement-by-statement memory trace, and a distinct animated neon night market.
-- Changed-input checks for student programs, with progress and downloadable evidence stored locally in the browser.
-- Animated scene transitions and true per-statement memory/output replay.
-- Pause, step and final-state controls; reduced-motion support.
-- Browser-local progress and downloadable learning evidence.
+- Start from the mission map. Lessons 1 and 2 retain their city and night-market activities. Lesson 3 can serve as a starting point for learners who already know the basics. In Lessons 3–15, saving a debrief after the required steps opens the next mission.
+- Lessons 3–13 combine prediction, trace or debugging questions with Java practice. Lesson 14 includes four free-response categories and a separate integration task. Lesson 15 includes a timed eight-question mini-mock, a timed programming task, and a personal study plan. The practice questions are original.
+- English is the default. Select 繁體中文 for Traditional Chinese. Code and required output stay in Java or English.
+- The teacher review menu can open a specific step in any lesson, including a lesson that students have not yet reached. Teacher review in Lessons 3–15 keeps the student’s unlock progress separate.
+- The browser stores progress and drafts on the current device. Download evidence before changing devices. The new course export covers Lessons 3–15. Use the original lesson controls to export Lesson 1 and Lesson 2 evidence.
 
-## Hosting
+## Running Java practice
 
-This repository contains only the static student website. GitHub Pages publishes the `main` branch from `/`. `.nojekyll` keeps the files unchanged. All project assets use relative paths, so the website supports the repository subpath.
+For Lessons 3–15, edit the draft in the site and choose **Download Java & tests**. Save the download as `MissionLab.java`, then compile and run it in a JDK or open it in a Java IDE.
 
-To preview locally, run `python3 -m http.server 4173` from this directory and open `http://127.0.0.1:4173/`.
+```sh
+javac MissionLab.java
+java MissionLab
+```
 
-The 3D scenes load a pinned Three.js module from jsDelivr. An internet connection is needed for those visuals; all lesson controls remain available if the module cannot load.
+The generated file runs the displayed exercise's test cases. Add a test for another input and record the actual result with a short explanation on the site. The teacher reviews code quality and written explanations. The first two lessons use their built-in limited Java practice runner.
 
-## Learning and runtime scope
+## Hosting and course scope
 
-This is introductory AP CSA Unit 1 practice, not a complete AP course or exam-readiness score. Lesson 2 aligns to the College Board's Unit 1 topics on evaluating arithmetic expressions, assignment operators, and operator sequencing. The runner implements a limited subset of Java statements, not a JVM or a full Java compiler. Explanations require a teacher's review. Teacher mode is a presentation aid, not an access-control boundary.
+GitHub Pages publishes the `main` branch from the repository root. All local assets use relative paths. For a local preview, run `python3 -m http.server 4173` from this directory. The 3D opening scenes load a pinned Three.js module from jsDelivr and the original lesson controls remain available without the 3D module.
 
-The lessons are independent educational work, not affiliated with College Board. See the [AP Computer Science A course overview](https://apstudents.collegeboard.org/courses/ap-computer-science-a).
-
-No learner accounts, server-side execution, or database are included. Work is stored in the visitor's browser on this origin; export it before switching browsers or devices. Existing work on a localhost preview does not automatically transfer to GitHub Pages.
-
-Images and their generation prompts are in `assets/`. Fonts load optionally from Google Fonts with system fallbacks. Private teacher solutions, local browser tests, earlier lesson documents and local platform configuration are not part of this repository.
-
-This independent educational project is not affiliated with or endorsed by College Board.
+The mission sequence follows the four units described in the [College Board AP Computer Science A overview](https://apstudents.collegeboard.org/courses/ap-computer-science-a). This independent site is not affiliated with College Board. The mini-mock is short practice for pacing and review. Art provenance is recorded in `assets/provenance.json`.
